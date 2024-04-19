@@ -44,7 +44,7 @@ async function mainAsync(){
   {
     const material=new THREE.MeshStandardMaterial( { color: 0x00ff00 } );
     const materialDummy=new THREE.MeshStandardMaterial( { color: 0xff00ff } );
-    const MAX_GEOMETRY_COUNT=100;
+    const MAX_GEOMETRY_COUNT=1000;
     const MAX_VERTEX_COUNT=100000;
     batchedMesh=new THREE.BatchedMesh(MAX_GEOMETRY_COUNT,MAX_VERTEX_COUNT);
     batchedMesh.material=material;
@@ -53,34 +53,67 @@ async function mainAsync(){
     dummyScene=new THREE.Scene();
     // scene.add(dummyScene);
 
-    {
-      const myUpdater:Updater=({
-        object3d,
-        time,
-      })=>{
-        object3d.position.x=Math.cos(time)*1;
-      };
-      const geometry=new THREE.BoxGeometry(1,1,1);
-      const mesh=new THREE.Mesh(geometry,materialDummy);
-      mesh.userData.updater=myUpdater;
-      dummyScene.add(mesh);
+    // {
+    //   const myUpdater:Updater=({
+    //     object3d,
+    //     time,
+    //   })=>{
+    //     object3d.position.x=Math.cos(time)*1;
+    //   };
+    //   const geometry=new THREE.BoxGeometry(1,1,1);
+    //   const mesh=new THREE.Mesh(geometry,materialDummy);
+    //   mesh.userData.updater=myUpdater;
+    //   dummyScene.add(mesh);
+    // }
+    // {
+    //   const myUpdater:Updater=({
+    //     object3d,
+    //     time,
+    //   })=>{
+    //     object3d.position.y=Math.sin(time)*1;
+    //   };
+    //   const geometry=new THREE.SphereGeometry(0.5);
+    //   const mesh=new THREE.Mesh(geometry,materialDummy);
+    //   mesh.userData.updater=myUpdater;
+    //   dummyScene.add(mesh);
+    // }
+    const branchGeometry=new THREE.BoxGeometry(0.5,1,0.5);
+    branchGeometry.translate(0,0.5,0);
+    function makeMesh(){
+      const mesh=new THREE.Mesh(branchGeometry,materialDummy);
+      return mesh;
     }
-    {
-      const myUpdater:Updater=({
-        object3d,
-        time,
-      })=>{
-        object3d.position.y=Math.sin(time)*1;
-      };
-      const geometry=new THREE.SphereGeometry(0.5);
-      const mesh=new THREE.Mesh(geometry,materialDummy);
-      mesh.userData.updater=myUpdater;
-      dummyScene.add(mesh);
+    function appendBranch(parent:THREE.Object3D,depth=0){
+
+
+      const meshA=makeMesh();
+      meshA.userData.updater=({object3d,time}:UpdaterParams)=>{
+        object3d.position.y=1;
+        object3d.rotation.z=(30+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
+        object3d.scale.set(0.8,0.8,0.8);
+      }
+      parent.add(meshA);
+      const meshB=makeMesh();
+      meshB.userData.updater=({object3d,time}:UpdaterParams)=>{
+        object3d.position.y=1;
+        object3d.rotation.z=-(40+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
+        object3d.scale.set(0.7,0.7,0.7);
+        }
+      parent.add(meshB);
+      if(depth<7){
+        appendBranch(meshA,depth+1);
+        appendBranch(meshB,depth+1);
+      }
     }
 
-    dummyScene.traverse((object3D)=>{
-      if(object3D instanceof THREE.Mesh){
-        batchedMesh.addGeometry(object3D.geometry);
+    const meshBase=makeMesh();
+    dummyScene.add(meshBase);
+    appendBranch(meshBase);
+
+
+    dummyScene.traverse((object3d)=>{
+      if(object3d instanceof THREE.Mesh){
+        batchedMesh.addGeometry(object3d.geometry);
       }
     });
 
@@ -91,7 +124,7 @@ async function mainAsync(){
 
 
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
-  camera.position.z=5;
+  camera.position.set(0,2,5);
 
   function render(timeMS: DOMHighResTimeStamp, _frame: XRFrame){
     const time=timeMS/1000;
