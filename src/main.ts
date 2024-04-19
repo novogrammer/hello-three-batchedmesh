@@ -1,10 +1,14 @@
 import './style.css'
 
 import * as THREE from "three";
+import Stats from "stats-gl";
 
-document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+const app=document.querySelector<HTMLDivElement>('#app')!;
+app.innerHTML = `
 <canvas id="view"></canvas>
 `;
+const stats = new Stats();
+app.appendChild( stats.dom );
 
 interface UpdaterParams{
   object3d:THREE.Object3D;
@@ -22,6 +26,8 @@ async function mainAsync(){
     // alpha: true,
   });
   renderer.setSize(window.innerWidth, window.innerHeight);
+  stats.init( renderer );
+
 
   const scene = new THREE.Scene();
 
@@ -44,15 +50,16 @@ async function mainAsync(){
   {
     const material=new THREE.MeshStandardMaterial( { color: 0x00ff00 } );
     const materialDummy=new THREE.MeshStandardMaterial( { color: 0xff00ff } );
-    const MAX_GEOMETRY_COUNT=1000;
-    const MAX_VERTEX_COUNT=100000;
+    const MAX_GEOMETRY_COUNT=10000;
+    const MAX_VERTEX_COUNT=MAX_GEOMETRY_COUNT*6*4;
+    const IS_BATCHED=true;
     batchedMesh=new THREE.BatchedMesh(MAX_GEOMETRY_COUNT,MAX_VERTEX_COUNT);
-    batchedMesh.visible=true;
+    batchedMesh.visible=IS_BATCHED;
     batchedMesh.material=material;
     scene.add(batchedMesh);
 
     dummyScene=new THREE.Scene();
-    dummyScene.visible=false;
+    dummyScene.visible=!IS_BATCHED;
     scene.add(dummyScene);
 
     const branchGeometry=new THREE.BoxGeometry(0.5,1,0.5);
@@ -61,6 +68,7 @@ async function mainAsync(){
       const mesh=new THREE.Mesh(branchGeometry,materialDummy);
       return mesh;
     }
+    const MAX_DEPTH=11;
     function appendBranch(parent:THREE.Object3D,depth=0){
 
 
@@ -78,7 +86,7 @@ async function mainAsync(){
         object3d.scale.set(0.7,0.7,0.7);
         }
       parent.add(meshB);
-      if(depth<7){
+      if(depth<MAX_DEPTH){
         appendBranch(meshA,depth+1);
         appendBranch(meshB,depth+1);
       }
@@ -132,6 +140,7 @@ async function mainAsync(){
     }
 
     renderer.render(scene,camera);
+    stats.update();
   }
   renderer.setAnimationLoop(render);
 
