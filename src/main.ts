@@ -6,6 +6,13 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
 <canvas id="view"></canvas>
 `;
 
+interface UpdaterParams{
+  object3d:THREE.Object3D;
+  time:number;
+  // deltaTime:number;
+};
+type Updater = (params:UpdaterParams)=>void;
+
 async function mainAsync(){
   const canvas=document.querySelector<HTMLCanvasElement>("#view")!;
 
@@ -24,12 +31,61 @@ async function mainAsync(){
   directionalLight.position.set(10,10,10);
   scene.add(directionalLight);
 
+  // {
+  //   const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+  //   const material = new THREE.MeshStandardMaterial( { color: 0x00ff00 } );
+  //   const cube = new THREE.Mesh( geometry, material );
+  //   scene.add( cube );
+  //   cube.lookAt(new THREE.Vector3(1,1,1));
+  // }
+
+  let dummyScene:THREE.Scene|null=null;
+  let batchedMesh:THREE.BatchedMesh|null=null;
   {
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
-    const material = new THREE.MeshStandardMaterial( { color: 0x00ff00 } );
-    const cube = new THREE.Mesh( geometry, material );
-    scene.add( cube );
-    cube.lookAt(new THREE.Vector3(1,1,1));
+    const material=new THREE.MeshStandardMaterial( { color: 0x00ff00 } );
+    const materialDummy=new THREE.MeshStandardMaterial( { color: 0xff00ff } );
+    const MAX_GEOMETRY_COUNT=100;
+    const MAX_VERTEX_COUNT=100000;
+    batchedMesh=new THREE.BatchedMesh(MAX_GEOMETRY_COUNT,MAX_VERTEX_COUNT);
+    batchedMesh.material=material;
+    scene.add(batchedMesh);
+
+    dummyScene=new THREE.Scene();
+    // scene.add(dummyScene);
+
+    {
+      const myUpdater:Updater=({
+        object3d,
+        time,
+      })=>{
+        object3d.position.x=Math.cos(time)*1;
+      };
+      const geometry=new THREE.BoxGeometry(1,1,1);
+      const mesh=new THREE.Mesh(geometry,materialDummy);
+      mesh.userData.updater=myUpdater;
+      dummyScene.add(mesh);
+    }
+    {
+      const myUpdater:Updater=({
+        object3d,
+        time,
+      })=>{
+        object3d.position.y=Math.sin(time)*1;
+      };
+      const geometry=new THREE.SphereGeometry(0.5);
+      const mesh=new THREE.Mesh(geometry,materialDummy);
+      mesh.userData.updater=myUpdater;
+      dummyScene.add(mesh);
+    }
+
+    dummyScene.traverse((object3D)=>{
+      if(object3D instanceof THREE.Mesh){
+        batchedMesh.addGeometry(object3D.geometry);
+      }
+    });
+
+
+    
   }
 
 
@@ -37,14 +93,29 @@ async function mainAsync(){
   const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
   camera.position.z=5;
 
-  function render(_time: DOMHighResTimeStamp, _frame: XRFrame){
-    // if(mesh && mesh.morphTargetInfluences){
-    //   mesh.morphTargetInfluences[0]=Math.sin(time/1000*0.3)*0.5+0.5;
-    //   mesh.morphTargetInfluences[1]=Math.sin(time/1000*0.5)*0.5+0.5;
-    // }
-    // if(mixer){
-    //   mixer.setTime(time/1000);
-    // }
+  function render(timeMS: DOMHighResTimeStamp, _frame: XRFrame){
+    const time=timeMS/1000;
+    if(dummyScene){
+      dummyScene.traverse((object3d:THREE.Object3D)=>{
+        if(object3d.userData.updater){
+          const updater=object3d.userData.updater as Updater;
+          updater({object3d,time})
+        }
+      });
+
+      if(batchedMesh){
+        let index=0;
+        dummyScene.traverse((object3d:THREE.Object3D)=>{
+          if(object3d instanceof THREE.Mesh){
+            // object3d.updateMatrix();
+            object3d.updateWorldMatrix(true,false);
+            batchedMesh.setMatrixAt(index,object3d.matrixWorld)
+            index++;
+          }
+        });
+        }
+  
+    }
 
     renderer.render(scene,camera);
   }
