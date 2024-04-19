@@ -47,36 +47,14 @@ async function mainAsync(){
     const MAX_GEOMETRY_COUNT=1000;
     const MAX_VERTEX_COUNT=100000;
     batchedMesh=new THREE.BatchedMesh(MAX_GEOMETRY_COUNT,MAX_VERTEX_COUNT);
+    batchedMesh.visible=true;
     batchedMesh.material=material;
     scene.add(batchedMesh);
 
     dummyScene=new THREE.Scene();
-    // scene.add(dummyScene);
+    dummyScene.visible=false;
+    scene.add(dummyScene);
 
-    // {
-    //   const myUpdater:Updater=({
-    //     object3d,
-    //     time,
-    //   })=>{
-    //     object3d.position.x=Math.cos(time)*1;
-    //   };
-    //   const geometry=new THREE.BoxGeometry(1,1,1);
-    //   const mesh=new THREE.Mesh(geometry,materialDummy);
-    //   mesh.userData.updater=myUpdater;
-    //   dummyScene.add(mesh);
-    // }
-    // {
-    //   const myUpdater:Updater=({
-    //     object3d,
-    //     time,
-    //   })=>{
-    //     object3d.position.y=Math.sin(time)*1;
-    //   };
-    //   const geometry=new THREE.SphereGeometry(0.5);
-    //   const mesh=new THREE.Mesh(geometry,materialDummy);
-    //   mesh.userData.updater=myUpdater;
-    //   dummyScene.add(mesh);
-    // }
     const branchGeometry=new THREE.BoxGeometry(0.5,1,0.5);
     branchGeometry.translate(0,0.5,0);
     function makeMesh(){
@@ -111,11 +89,14 @@ async function mainAsync(){
     appendBranch(meshBase);
 
 
+    let geometryCount=0;
     dummyScene.traverse((object3d)=>{
       if(object3d instanceof THREE.Mesh){
         batchedMesh.addGeometry(object3d.geometry);
+        geometryCount++;
       }
     });
+    console.log(`geometryCount: ${geometryCount}`);
 
 
     
