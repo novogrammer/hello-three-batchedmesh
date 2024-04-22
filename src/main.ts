@@ -60,7 +60,7 @@ async function mainAsync(){
 
     dummyScene=new THREE.Scene();
     dummyScene.visible=!IS_BATCHED;
-    scene.add(dummyScene);
+    // scene.add(dummyScene);
 
     const branchGeometry=new THREE.BoxGeometry(0.5,1,0.5);
     branchGeometry.translate(0,0.5,0);
@@ -69,22 +69,27 @@ async function mainAsync(){
       return mesh;
     }
     const MAX_DEPTH=11;
+
+    const updater1:Updater=({object3d,time}:UpdaterParams)=>{
+      object3d.position.y=1;
+      object3d.rotation.z=(30+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
+      object3d.scale.set(0.8,0.8,0.8);
+    }
+
+    const updater2:Updater=({object3d,time}:UpdaterParams)=>{
+      object3d.position.y=1;
+      object3d.rotation.z=-(40+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
+      object3d.scale.set(0.7,0.7,0.7);
+    }
+
     function appendBranch(parent:THREE.Object3D,depth=0){
 
 
       const meshA=makeMesh();
-      meshA.userData.updater=({object3d,time}:UpdaterParams)=>{
-        object3d.position.y=1;
-        object3d.rotation.z=(30+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
-        object3d.scale.set(0.8,0.8,0.8);
-      }
+      meshA.userData.updater=updater1;
       parent.add(meshA);
       const meshB=makeMesh();
-      meshB.userData.updater=({object3d,time}:UpdaterParams)=>{
-        object3d.position.y=1;
-        object3d.rotation.z=-(40+Math.sin(time)*5)*THREE.MathUtils.DEG2RAD;
-        object3d.scale.set(0.7,0.7,0.7);
-        }
+      meshB.userData.updater=updater2;
       parent.add(meshB);
       if(depth<MAX_DEPTH){
         appendBranch(meshA,depth+1);
@@ -118,19 +123,18 @@ async function mainAsync(){
   function render(timeMS: DOMHighResTimeStamp, _frame: XRFrame){
     const time=timeMS/1000;
     if(dummyScene){
-      dummyScene.traverse((object3d:THREE.Object3D)=>{
-        if(object3d.userData.updater){
-          const updater=object3d.userData.updater as Updater;
-          updater({object3d,time})
-        }
-      });
 
       if(batchedMesh){
         let index=0;
         dummyScene.traverse((object3d:THREE.Object3D)=>{
+          if(object3d.userData.updater){
+            const updater=object3d.userData.updater as Updater;
+            updater({object3d,time})
+          }
+        });
+        dummyScene.updateWorldMatrix(false,true);
+        dummyScene.traverse((object3d:THREE.Object3D)=>{
           if(object3d instanceof THREE.Mesh){
-            // object3d.updateMatrix();
-            object3d.updateWorldMatrix(true,false);
             batchedMesh.setMatrixAt(index,object3d.matrixWorld)
             index++;
           }
